@@ -4,38 +4,28 @@
 'use strict';
 const nodemailer = require('nodemailer');
 
-
-
 //transporter object which will send emails
 var transporter = nodemailer.createTransport({
+    //TODO : Create a gmail account for mailing purpose
     service: 'gmail',
     auth: {
-        user: 'koopernikkoop@gmail.com',
-        pass: '19961375nA'
+        user: 'prograph@gmail.com',
+        pass: 'what do you think?'
     }
 });
 
-
-
-
-
-
-
-
-
-
-var SendAuthenticationMail = function (data, callback) {
-    var emailTest = "Hello Dear " + data["name"] + ".We received your request for signing up to our application." +
-            "Please confirm your request by sending us back the confirmation number in below. \n " + data["confirmation"]
-        ;
+//send confirmation code to the user email
+var send_confirmation_code = function (data, callback) {
+    var emailTest = "Hello Dear " + data["username"] + ".We have received your request for signing up to our application." +
+            "Please confirm your request by sending us back the confirmation number in below. \n ";
     var clientEmail = data["email"];
 
     var mailOption = {
-        from: 'koopernikkoop@gmail.com',
+        from: 'prograph@gmail.com',
         to: clientEmail,
         subject: 'Confirmation',
         text: emailTest,
-        html: '<b style="float = right"> Best _ Koopernik Koop </b>'
+        html: '<b style="float = right">{}</b>'.format(data["confirmation_code"])
     };
 
     transporter.sendMail(mailOption, function (error, info) {
@@ -44,6 +34,8 @@ var SendAuthenticationMail = function (data, callback) {
         else
             callback(null, info);
     });
+
+
 };
 
 

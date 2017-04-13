@@ -40,6 +40,7 @@ var run_query = function(query) {
 //register a user with given user data
 function register_user(userdata){
     console.log(chalk.red("###--- REGISTER USER ---###"));
+
     var query2 ="CALL register_user('" +
         userdata["username"] + "','"+
         userdata["email"]+"','" +
@@ -47,8 +48,7 @@ function register_user(userdata){
         userdata["last_name"]+"','"+
         userdata["password"]+"');";
 
-    console.log(chalk.green(query2));
-
+    connection.query(query2);
     console.log(chalk.green("$$$--USER ADD---$$$ \n" )+ query2);
 
 }
@@ -107,10 +107,29 @@ function fetch_user_sent(userdata , callback){
 }
 
 
-function check_username_password(userdata , callback){
-    //console.log(chalk.)
-    var query= "SELECT password , is_confirmed FROM user WHERE username="+userdata["username"] ;
+function check_user_password(userdata , callback){
+    console.log(chalk.yellow("DB_Middleware >>> ") + chalk.white("checking password" ));
+    console.log(chalk.green("DB_Middleware:check-user-password >>> ")+chalk.blue("given password"+userdata["password"]));
 
+    //forge a proper query
+    var query= "SELECT password , is_confirmed FROM user WHERE username= '"+userdata["username"]+"'" ;
+    console.log(chalk.green("DB_Middleware:check-user-password >>> ")+chalk.blue("query :"+query));
+
+    //run the query
+    connection.query(query , function(error , results , fields){
+        if(error)
+            callback(error , null) ;
+        else if(!results)
+            callback(new Error("NOT FOUND") , null);
+        else {
+            fetched_info = results[0];
+            console.log(chalk.green("DB_Middleware >>> ")+ chalk.blue("fetched password: "+JSON.stringify(fetched_info)));
+            if(fetched_info["is_confirmed"] == 0)
+                callback(new Error("Not Confirmed") , null);
+            else
+                callback(null , fetched_info == userdata["password"]);
+        }
+    });
 }
 
 exports.connect = connect;
@@ -119,6 +138,7 @@ exports.register_user = register_user;
 exports.fetch_user_prime_data = fetch_user_prime_data;
 exports.fetch_user_inbox = fetch_user_inbox ;
 exports.fetch_user_sent = fetch_user_sent ;
+exports.check_user_password = check_user_password;
 
 
 //TEST --
