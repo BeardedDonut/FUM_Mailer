@@ -18,6 +18,10 @@ DBMiddleware.connect();
 var address = "localhost" ;
 var port = 3000;
 
+function send_confirmation_code(userdata , callback){
+    
+}
+
 //check server
 app.get("/" , function(req,res){
     console.log("somebody has connected to us");+
@@ -26,10 +30,12 @@ app.get("/" , function(req,res){
 
 //user registration api
 app.post("/user/" , function (req,res) {
-    console.log("someone wants to register to the server");
-    console.log(req.body);
-    //TODO : confirmation code has to be sent
+    console.log(chalk.yellow("Server:user-post >>> ") + chalk.white("registering a user"));
     DBMiddleware.register_user(req.body);
+
+    //TODO : confirmation code has to be sent
+
+
     res.send("HAHAHAHA");
 });
 
