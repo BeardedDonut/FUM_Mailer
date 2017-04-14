@@ -3,30 +3,36 @@
  */
 'use strict';
 const nodemailer = require('nodemailer');
+var chalk = require("chalk");
 
 //transporter object which will send emails
 var transporter = nodemailer.createTransport({
     //TODO : Create a gmail account for mailing purpose
     service: 'gmail',
     auth: {
-        user: 'prograph@gmail.com',
-        pass: 'what do you think?'
+        user: 'bishoorozgal@gmail.com',
+        pass: '1234567*('
     }
 });
 
 //send confirmation code to the user email
-var send_confirmation_code = function (data, callback) {
-    var emailTest = "Hello Dear " + data["username"] + ".We have received your request for signing up to our application." +
+var send_confirmation_code = function (userdata, callback) {
+    console.log(chalk.yellow("Mailer:send-confirm-code >>> ") + chalk.white("sending sending email"));
+    var emailTest = "Hello Dear " + userdata["username"] + ".We have received your request for signing up to our application." +
             "Please confirm your request by sending us back the confirmation number in below. \n ";
-    var clientEmail = data["email"];
+    var clientEmail = userdata["email"];
 
     var mailOption = {
-        from: 'prograph@gmail.com',
+        from: 'bishoorozgal@gmail.com',
         to: clientEmail,
         subject: 'Confirmation',
         text: emailTest,
-        html: '<b style="float = right">{}</b>'.format(data["confirmation_code"])
+        html: '<b style="float = right">{}</b>'.format(userdata["confirmation_code"])
     };
+
+    console.log(chalk.yellow("Mailer:send-confirm-code >>> ") + chalk.blue(JSON.stringify(mailOption)));
+    //callback(null , "ok");
+
 
     transporter.sendMail(mailOption, function (error, info) {
         if (error)
@@ -40,4 +46,4 @@ var send_confirmation_code = function (data, callback) {
 
 
 
-exports.SendAuthenticationMail = SendAuthenticationMail;
+exports.send_confirmation_code = send_confirmation_code;

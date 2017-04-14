@@ -1,8 +1,8 @@
-var database_middleware;
+//================= Requirements
 var mysql      = require('mysql');
 var chalk      = require('chalk');
+
 //mysql agent
-//TODO : create privileged user on database side
 var connection = mysql.createConnection({
   host     : 'localhost',
   user     : 'mail_tester',
@@ -18,6 +18,7 @@ String.prototype.format = function () {
   });
 };
 
+//================= Core Functions
 
 //database_middleware.connect
 var connect = function () {
@@ -37,9 +38,25 @@ var run_query = function(query) {
   })
 };
 
+function set_confirm_code(data , callback){
+    console.log(chalk.yellow("DB_Middleware:register-user >>> ") + chalk.white("update confirm code" ));
+    query = "CALL set_confirm_code('"   +
+            data.confirmation_code+ "','" +
+            data.username  +"');" ;
+
+    console.log(chalk.yellow("DB_Middleware:set-confirm-code >>> ") + chalk.blue("query : "+ query ));
+    connection.query(query , function (error , result) {
+        if(error)
+            callback(error.toString() , null) ;
+        else
+            callback(null , result);
+    });
+
+}
+
 //register a user with given user data
 function register_user(userdata){
-    console.log(chalk.red("###--- REGISTER USER ---###"));
+    console.log(chalk.yellow("DB_Middleware:register-user >>> ") + chalk.white("register user to database" ));
 
     var query2 ="CALL register_user('" +
         userdata["username"] + "','"+
@@ -55,11 +72,14 @@ function register_user(userdata){
 
 //fetch user data
 function fetch_user_prime_data(userdata , callback) {
+    console.log(chalk.yellow("DB_Middleware:fetch-user-prime-data >>> ") + chalk.white("fetch user primary info" ));
+
+    //forge a proper query
     var query=  "SELECT username , first_name , last_name , email " +
                 "FROM user " +
                 "WHERE username= '" +userdata["username"]+ "';";
 
-    console.log(chalk.red("###--- FETCHING DATA ---###\n") +query );
+    console.log(chalk.yellow("DB_Middleware:fetch-user-prime-data >>> ") + chalk.blue("forged query : " + query ));
 
     connection.query(query , function (errors , results , fields) {
         if(errors)
@@ -68,8 +88,8 @@ function fetch_user_prime_data(userdata , callback) {
             callback(new Error("NOT FOUND") , null);    //if there is no result
         else{
             //else if everything is all right send back the results
-            console.log(chalk.green("$$$--USER PRIMARY FETCH---$$$ \n" ) + JSON.stringify(results[0]));
-            callback(null , JSON.stringify(results[0]));
+            console.log(chalk.yellow("DB_Middleware:fetch-user-prime-data >>> ") + chalk.blue("fetched info \n "+JSON.stringify(results[0])));
+            callback(null , results[0]);
         }
     });
 }
@@ -108,7 +128,7 @@ function fetch_user_sent(userdata , callback){
 
 
 function check_user_password(userdata , callback){
-    console.log(chalk.yellow("DB_Middleware >>> ") + chalk.white("checking password" ));
+    console.log(chalk.yellow("DB_Middleware:check-user-password >>> ") + chalk.white("checking password" ));
     console.log(chalk.green("DB_Middleware:check-user-password >>> ")+chalk.blue("given password"+userdata["password"]));
 
     //forge a proper query
@@ -139,6 +159,7 @@ exports.fetch_user_prime_data = fetch_user_prime_data;
 exports.fetch_user_inbox = fetch_user_inbox ;
 exports.fetch_user_sent = fetch_user_sent ;
 exports.check_user_password = check_user_password;
+exports.set_confirm_code = set_confirm_code ;
 
 
 //TEST --
