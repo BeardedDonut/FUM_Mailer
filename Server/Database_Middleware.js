@@ -38,13 +38,14 @@ var run_query = function(query) {
   })
 };
 
+//set the given confirmation code for the given username
 function set_confirm_code(data , callback){
-    console.log(chalk.yellow("DB_Middleware:register-user >>> ") + chalk.white("update confirm code" ));
+    console.log(chalk.yellow("DB_Middleware:set-confirm-code >>> ") + chalk.white("update confirm code" ));
     query = "CALL set_confirm_code('"   +
             data.confirmation_code+ "','" +
             data.username  +"');" ;
 
-    console.log(chalk.yellow("DB_Middleware:set-confirm-code >>> ") + chalk.blue("query : "+ query ));
+    console.log(chalk.yellow("DB_Middleware:set-confirm-code >>> ") + chalk.blue("query: \n"+ query ));
     connection.query(query , function (error , result) {
         if(error)
             callback(error.toString() , null) ;
@@ -52,6 +53,38 @@ function set_confirm_code(data , callback){
             callback(null , result);
     });
 
+}
+
+//fetch the confirmation code of a given username
+function fetch_confirm_code(userdata , callback){
+    console.log(chalk.yellow("DB_Middleware:fetch-confirm-code >>> ") + chalk.white("fetching confirm code..." ));
+    query = "SELECT confirm_code FROM user WHERE username='"+userdata.username+"'" ;
+
+    console.log(chalk.yellow("DB_Middleware:register-user >>> ") + chalk.blue("query: \n" + query ));
+    connection.query(query , function(error , result){
+        if(error)
+            callback(error.toString() , null);
+        else
+        {
+            console.log(chalk.yellow("DB_Middleware:register-user >>> ") + chalk.blue("fetched code " + JSON.stringify(result[0] )));
+            callback(null , result[0]) ;
+        }
+    });
+
+}
+
+//set confirm code status
+function set_confirm_code_status(userdata , status , callback){
+    console.log(chalk.yellow("DB_Middleware:fetch-confirm-code >>> ") + chalk.white("updating confirm code status" ));
+
+    query = "CALL set_confirm_code_status ('"+userdata.username + "'," +status+ ");" ;
+
+    connection.query(query , function (error , result) {
+        if(error)
+            callback(error.toString());
+        else
+            callback(null , result);
+    }) ;
 }
 
 //register a user with given user data
@@ -160,7 +193,8 @@ exports.fetch_user_inbox = fetch_user_inbox ;
 exports.fetch_user_sent = fetch_user_sent ;
 exports.check_user_password = check_user_password;
 exports.set_confirm_code = set_confirm_code ;
-
+exports.fetch_confirm_code = fetch_confirm_code ;
+exports.set_confirm_code_status  = set_confirm_code_status;
 
 //TEST --
 function test(){
