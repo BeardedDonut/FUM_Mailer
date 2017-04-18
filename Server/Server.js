@@ -1,6 +1,7 @@
 /**
  * Created by navid on 2/28/17.
  */
+
 //REQUIREMENTS -->
 var express = require("express");
 var bodyParser = require('body-parser');
@@ -74,7 +75,7 @@ app.get("/", function (req, res) {
 app.post("/user/", function (req, res) {
     console.log(chalk.yellow("Server:user-post >>> ") + chalk.white("registering a user"));
 
-    reply = {"status" : 0 , "content" : null};
+    reply = {"status": 0, "content": null};
     //register in database
     DBMiddleware.register_user(req.body, function (error, info) {
         if (error)
@@ -84,10 +85,9 @@ app.post("/user/", function (req, res) {
             send_confirmation_code(req.body, function (error, info) {
                 if (error)
                     res.send(reply.content = error.toString());
-                else
-                {
-                    reply.status = 1 ;
-                    reply.content = "registered successfully" ;
+                else {
+                    reply.status = 1;
+                    reply.content = "registered successfully";
                     res.send();
                 }
             });
@@ -152,7 +152,6 @@ app.unlock("/user/", function (req, res) {
     res.send("Bye");
 });
 
-
 //check if a given confirmation code matches
 app.put("/confirmation/", function (req, res) {
     console.log(chalk.yellow("Server:confirmation-put >>> ") + chalk.white("checking if conf codes match?"));
@@ -199,7 +198,6 @@ app.put("/confirmation/", function (req, res) {
 
 
 });
-
 
 //resending confirmation code to an specific username
 app.post("/confirmation/", function (req, res) {
@@ -257,7 +255,6 @@ app.post("/message/", function (req, res) {
         for (i = 0; i < logged_users.length; i++) {
             //check if the request is from logged users or not
             if (JSON.stringify(logged_users[i].username) == sender && key == JSON.stringify(logged_users[i].key)) {
-                //TODO : send message procedure
                 DBMiddleware.send_message(req.body, function (error, info) {
                     if (error)
                         res.send(reply.content = error.toString());
@@ -276,9 +273,10 @@ app.post("/message/", function (req, res) {
     }
 });
 
-
 //fetch inbox message subjects and their state which indicates it is read or not
 app.put("/message/inbox/", function (req, res) {
+    console.log(chalk.yellow("Server:message/inbox-put >>> ") + chalk.white("fetch inbox subjects"));
+
     key = JSON.stringify(req.body.key);
     username = JSON.stringify(req.body.username);
 
@@ -295,7 +293,7 @@ app.put("/message/inbox/", function (req, res) {
     if (i == logged_users.length)
         res.send(reply.content = "Not found"); //TODO : send proper message
     else
-        DBMiddleware.fetch_user_inbox(req.body, function (error, result) {
+        DBMiddleware.fetch_user_inbox_subjects(req.body, function (error, result) {
             if (error)
                 res.send(reply.content = error.toString()); //TODO : send proper message
             else {
@@ -308,7 +306,10 @@ app.put("/message/inbox/", function (req, res) {
 
 });
 
+//fetch inbox message subjects and their state which indicates it is read or not
 app.put("/message/outbox/", function (req, res) {
+    console.log(chalk.yellow("Server:message/sent-put >>> ") + chalk.white("fetch sent subjects"));
+
     key = JSON.stringify(req.body.key);
     username = JSON.stringify(req.body.username);
 
@@ -323,9 +324,9 @@ app.put("/message/outbox/", function (req, res) {
         }
     }
     if (i == logged_users.length)
-        res.send(reply.content = "Not found"); //TODO : send proper message
+        res.send(reply.content = "please log in first"); //TODO : send proper message
     else
-        DBMiddleware.fetch_user_inbox(req.body, function (error, result) {
+        DBMiddleware.fetch_user_sent_subjects(req.body, function (error, result) {
             if (error)
                 res.send(reply.content = error.toString()); //TODO : send proper message
             else {
@@ -338,32 +339,73 @@ app.put("/message/outbox/", function (req, res) {
 
 });
 
-
+//TODO :
 //fetch a specific message provided it's subject
-app.get("/message/inbox/:subject", function (req, res) {
+app.post("/message/inbox/", function (req, res) {
 
-    key = req.body.key;
+    key = JSON.stringify(req.body.key);
+    username = JSON.stringify(req.body.username);
 
-    for (var i = 0; i < logged_users.length; i++) {
-        if (logged_users.username == sender && key == logged_users.key) {
-            //TODO : fetch specific message procedure
-            //TODO : change the specified message's state to read
+
+    reply = {"status": 0, "content": null};
+
+    var i = 0;
+    for (i = 0; i < logged_users.length; i++) {
+        cur_logged_username = JSON.stringify(logged_users[i].username);
+        cur_logged_key = JSON.stringify(logged_users[i].key);
+        if (username == cur_logged_username && key == cur_logged_key) {
+            break;
         }
+    }
+    if (i == logged_users.length)
+        res.send(reply.content = "please log in first");
+    else {
+        //TODO : fetch
     }
 
 });
 
+//TODO :
+//fetch a specific message from outbox
+app.post("/message/outbox/", function (req, res) {
+
+    key = JSON.stringify(req.body.key);
+    username = JSON.stringify(req.body.username);
+
+
+    reply = {"status": 0, "content": null};
+
+    var i = 0;
+    for (i = 0; i < logged_users.length; i++) {
+        cur_logged_username = JSON.stringify(logged_users[i].username);
+        cur_logged_key = JSON.stringify(logged_users[i].key);
+        if (username == cur_logged_username && key == cur_logged_key) {
+            break;
+        }
+    }
+    if (i == logged_users.length)
+        res.send(reply.content = "please log in first");
+    else {
+        //TODO : fetch
+    }
+
+});
+
+
+//test
 app.get("/admin/", function (req, res) {
-    console.log(chalk.yellow("Server:admin >>> ") + chalk.white("logged in users") + chalk.green(logged_users.toString()));
+    console.log(chalk.yellow("Server:admin >>> ") + chalk.white("logged in users") + chalk.green(logged_users.length));
+    for (var i = 0; i < logged_users.length; i++)
+        console.log("   =>" + JSON.stringify(logged_users[i]));
     res.send("ok");
 });
 
+//server initiation
 var server = app.listen(port, address, function () {
     var host = server.address().address;
     var port = server.address().port;
 
     console.log("Server is listening at http://%s:%s", host, port);
 });
-
 
 var connectedUsers = [];

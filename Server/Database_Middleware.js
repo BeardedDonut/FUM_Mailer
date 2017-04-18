@@ -132,39 +132,7 @@ function fetch_user_prime_data(userdata , callback) {
     });
 }
 
-//fetch inbox
-function fetch_user_inbox(userdata , callback){
-    var query = "SELECT * FROM message , send_message WHERE receiver_username = "+userdata["username"] +" AND id = message_id ";
-    console.log(chalk.red("###--- Fetching inbox ---###")) ;
-    connection.query(query , function(errors , results , fields){
-        if(errors)
-            callback(error , null );
-        else if(!results)
-            callback(new Error("NOT FOUND") , null) ;
-        else {
-            console.log(chalk.green("$$$--- All mails received ---$$$") + JSON.stringify(results[0]));
-            callback(null , JSON.stringify(results));
-        }
-    });
-}
-
-//fetch sent mails
-function fetch_user_sent(userdata , callback){
-    var query = "SELECT * FROM message , send_message WHERE sender_username = "+userdata["username"] +" AND id = message_id ";
-    console.log(chalk.red("###--- Fetching sent box ---###")) ;
-    connection.query(query , function(errors , results , fields){
-        if(errors)
-            callback(error , null );
-        else if(!results)
-            callback(new Error("NOT FOUND") , null) ;
-        else {
-            console.log(chalk.green("$$$--- All sent messages ---$$$") + JSON.stringify(results[0]));
-            callback(null , JSON.stringify(results));
-        }
-    });
-}
-
-
+//checks the user password provided its entry passwor
 function check_user_password(userdata , callback){
     console.log(chalk.yellow("DB_Middleware:check-user-password >>> ") + chalk.white("checking password" ));
 
@@ -192,6 +160,7 @@ function check_user_password(userdata , callback){
     });
 }
 
+//sends a message
 function send_message(data , callback){
     console.log(chalk.yellow("DB_Middleware:send-message >>> ") + chalk.white("sending message" ));
 
@@ -211,32 +180,83 @@ function send_message(data , callback){
 
 }
 
-function fetch_message_subjects(data , callback){
-    console.log(chalk.yellow("DB_Middleware:fetch-message-subjects >>> ") + chalk.white("fetch all message subjects" ));
-    query = "SELECT subject FROM message , send_message WHERE message_id = id AND receiver_username = " + JSON.stringify(data.username) ;
+//fetch inbox
+function fetch_user_inbox_subjects(userdata , callback){
+     console.log(chalk.yellow("DB_Middleware:fetch-user-inbox-subject >>> ") + chalk.white("fetch inbox subjects" ));
 
-    connecttion.query(query  , function(error  , result , fields){
+    //forge a proper query
+    var query = "SELECT subject , is_checked FROM message , send_message WHERE receiver_username = "+JSON.stringify(userdata.username)  +" AND id = message_id ";
+
+    //run the query
+    connection.query(query , function(errors , results , fields){
+        if(errors)
+            callback(error , null );
+        else if(!results)
+            callback(new Error("NOT FOUND") , null) ;
+        else {
+            callback(null , results);
+        }
+    });
+}
+
+//fetch sent mails
+function fetch_user_sent_subjects(userdata , callback){
+     console.log(chalk.yellow("DB_Middleware:fetch-user-sent-subjects >>> ") + chalk.white("fetch sent subjects"));
+
+     //forge a proper query
+    var query = "SELECT subject FROM message , send_message WHERE sender_username = "+JSON.stringify(userdata.username) +" AND id = message_id ";
+
+    //run the query
+    connection.query(query , function(error , result , fields){
+        if(error)
+            callback(error , null );
+        else if(!result)
+            callback(new Error("NOT FOUND") , null) ;
+        else {
+            callback(null , result);
+        }
+    });
+}
+
+//fetch a specific message provided its subject
+function fetch_message_content(data , callback){
+    console.log(chalk.yellow("DB_Middleware: >>> ") + chalk.white("fetch sent subjects"));
+
+    //forge a proper query
+    var query = "SELECT * FROM message , send_message WHERE message_id = id AND subject=" + JSON.stringify(data.subject) +
+        "AND receiver_username = "
+
+    //run the query
+    connection.query(query , function(error , result , fields){
         if(error)
             callback(error , null);
-        else if(result == null)
-            callback(new Error("you have no message") , null);
+        else if(!result)
+            callback(new Error("NOT FOUND") , null) ;
         else
             callback(null , result);
     });
 }
 
+
+//prime operations
 exports.connect = connect;
 exports.run_query = run_query;
+
+//user related
 exports.register_user = register_user;
 exports.fetch_user_prime_data = fetch_user_prime_data;
-exports.fetch_user_inbox = fetch_user_inbox ;
-exports.fetch_user_sent = fetch_user_sent ;
 exports.check_user_password = check_user_password;
+
+//confirmation related
 exports.set_confirm_code = set_confirm_code ;
 exports.fetch_confirm_code = fetch_confirm_code ;
 exports.set_confirm_code_status  = set_confirm_code_status;
+
+//messaging related
 exports.send_message = send_message;
-exports.fetch_user_inbox = fetch_user_inbox;
+exports.fetch_user_inbox_subjects = fetch_user_inbox_subjects;
+exports.fetch_user_sent_subjects = fetch_user_sent_subjects ;
+exports.fetch_message_content = fetch_message_content ;
 
 //TEST --
 function test(){
