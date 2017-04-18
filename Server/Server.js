@@ -17,8 +17,11 @@ app.use(bodyParser.urlencoded({extended: true})); // for parsing application/x-w
 
 //INIT -->
 DBMiddleware.connect();
-var address = "localhost";
+var localaddr = "192.168.43.201";
+var localhost = "localhost";
+var address = localhost;
 var port = 3000;
+logged_users = [];//logged users
 
 //this function sends the confirmation code to a user provided his username
 function send_confirmation_code(userdata, callback) {
@@ -38,7 +41,8 @@ function send_confirmation_code(userdata, callback) {
 
                     result.confirmation_code = code;
                     //set the generated confirm code in database too
-                    DBMiddleware.set_confirm_code(result, function (my_error, my_result) {});
+                    DBMiddleware.set_confirm_code(result, function (my_error, my_result) {
+                    });
 
                     //ask mailer module to send the generated confirmation code
                     Mailer.send_confirmation_code(result, function (error, info) {
@@ -62,25 +66,33 @@ function send_confirmation_code(userdata, callback) {
 //check server
 app.get("/", function (req, res) {
     console.log(chalk.yellow("Server:get >>> ") + chalk.white("checking for server status"));
-    res.send("Server is up and running ... please enter your name");
+    reply = {"status": 1, "content": null};
+    res.send(reply);
 });
 
 //user registration api
 app.post("/user/", function (req, res) {
     console.log(chalk.yellow("Server:user-post >>> ") + chalk.white("registering a user"));
 
+    reply = {"status" : 0 , "content" : null};
     //register in database
-    DBMiddleware.register_user(req.body);
-
-    //send the confirmation code to registered-user's email
-    send_confirmation_code(req.body, function (error, info) {
+    DBMiddleware.register_user(req.body, function (error, info) {
         if (error)
-            res.send(error.toString());
-        else
-            res.send(info);
+            res.send(reply.content = error.toString());
+        else {
+            //send the confirmation code to registered-user's email
+            send_confirmation_code(req.body, function (error, info) {
+                if (error)
+                    res.send(reply.content = error.toString());
+                else
+                {
+                    reply.status = 1 ;
+                    reply.content = "registered successfully" ;
+                    res.send();
+                }
+            });
+        }
     });
-
-
 });
 
 //getting user full info api
@@ -108,20 +120,38 @@ app.put("/user/", function (req, res) {
         "username": username,
         "password": password
     }, function (error, results) {
-        if (error)
-            reply.content = error.toString();
+        if (error) {
+            res.send(reply.content = error.toString());
+        }
         else if (results == true) {
+
             reply.status = 1;
-            reply.content = "Welcome";
+            //generate a key to use
+            code_generator.generate_short_id(function (id) {
+                reply.content = id;
+                res.send(reply);
+
+                logged_users.push({"username": username, "key": id});
+
+            });
         }
         else
-            reply.content = "username or password incorrect.Try again";
+            res.send(reply.content = "username or password incorrect.Try again");
 
-        //send the reply
-        res.send(reply);
     });
 
 });
+
+//log out procedure
+app.unlock("/user/", function (req, res) {
+    username = req.body.username;
+    for (i = 0; i < logged_users.length; i++) {
+        if (logged_users[i].username == username)
+            logged_users.splice(i, 1);
+    }
+    res.send("Bye");
+});
+
 
 //check if a given confirmation code matches
 app.put("/confirmation/", function (req, res) {
@@ -170,6 +200,7 @@ app.put("/confirmation/", function (req, res) {
 
 });
 
+
 //resending confirmation code to an specific username
 app.post("/confirmation/", function (req, res) {
     console.log(chalk.yellow("Server:confirmation-post >>> ") + chalk.white("asking for resending confirmation code"));
@@ -200,6 +231,131 @@ app.post("/confirmation/", function (req, res) {
     }
 
 
+});
+
+//send a message procedure
+app.post("/message/", function (req, res) {
+
+    console.log(chalk.yellow("Server:message-post >>> ") + chalk.white("sending message"));
+
+    subject = req.body.subject;
+    receiver = req.body.receiver;
+    content = req.body.content;
+    sender = JSON.stringify(req.body.sender);
+    key = JSON.stringify(req.body.key);
+
+    console.log("1- =>" + JSON.stringify(req.body));
+
+    //create a template for reply
+    reply = {"status": 0, "content": null};
+
+    //check for the requirements
+    if (subject == null || receiver == null || content == null || sender == null)
+        res.send(reply.content = "some message component is missing");
+    else {
+        var i = 0;
+        for (i = 0; i < logged_users.length; i++) {
+            //check if the request is from logged users or not
+            if (JSON.stringify(logged_users[i].username) == sender && key == JSON.stringify(logged_users[i].key)) {
+                //TODO : send message procedure
+                DBMiddleware.send_message(req.body, function (error, info) {
+                    if (error)
+                        res.send(reply.content = error.toString());
+                    else {
+                        reply.content = "message sent";
+                        reply.status = 0;
+                        res.send(reply);
+                    }
+                });
+                break;
+            } else if (logged_users.username == sender) {
+                res.send(reply.content = sender + " please log in first");
+            }
+        }
+        if (i == logged_users) res.send(reply.content = "please log in with your username first");
+    }
+});
+
+
+//fetch inbox message subjects and their state which indicates it is read or not
+app.put("/message/inbox/", function (req, res) {
+    key = JSON.stringify(req.body.key);
+    username = JSON.stringify(req.body.username);
+
+    reply = {"status": 0, "content": null};
+
+    var i = 0;
+    for (i = 0; i < logged_users.length; i++) {
+        cur_logged_username = JSON.stringify(logged_users[i].username);
+        cur_logged_key = JSON.stringify(logged_users[i].key);
+        if (username == cur_logged_username && key == cur_logged_key) {
+            break;
+        }
+    }
+    if (i == logged_users.length)
+        res.send(reply.content = "Not found"); //TODO : send proper message
+    else
+        DBMiddleware.fetch_user_inbox(req.body, function (error, result) {
+            if (error)
+                res.send(reply.content = error.toString()); //TODO : send proper message
+            else {
+                reply.status = 1;
+                reply.content = result;
+                res.send(reply);
+            }
+        });
+
+
+});
+
+app.put("/message/outbox/", function (req, res) {
+    key = JSON.stringify(req.body.key);
+    username = JSON.stringify(req.body.username);
+
+    reply = {"status": 0, "content": null};
+
+    var i = 0;
+    for (i = 0; i < logged_users.length; i++) {
+        cur_logged_username = JSON.stringify(logged_users[i].username);
+        cur_logged_key = JSON.stringify(logged_users[i].key);
+        if (username == cur_logged_username && key == cur_logged_key) {
+            break;
+        }
+    }
+    if (i == logged_users.length)
+        res.send(reply.content = "Not found"); //TODO : send proper message
+    else
+        DBMiddleware.fetch_user_inbox(req.body, function (error, result) {
+            if (error)
+                res.send(reply.content = error.toString()); //TODO : send proper message
+            else {
+                reply.status = 1;
+                reply.content = result;
+                res.send(reply);
+            }
+        });
+
+
+});
+
+
+//fetch a specific message provided it's subject
+app.get("/message/inbox/:subject", function (req, res) {
+
+    key = req.body.key;
+
+    for (var i = 0; i < logged_users.length; i++) {
+        if (logged_users.username == sender && key == logged_users.key) {
+            //TODO : fetch specific message procedure
+            //TODO : change the specified message's state to read
+        }
+    }
+
+});
+
+app.get("/admin/", function (req, res) {
+    console.log(chalk.yellow("Server:admin >>> ") + chalk.white("logged in users") + chalk.green(logged_users.toString()));
+    res.send("ok");
 });
 
 var server = app.listen(port, address, function () {

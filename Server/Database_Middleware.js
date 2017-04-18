@@ -88,7 +88,7 @@ function set_confirm_code_status(userdata , status , callback){
 }
 
 //register a user with given user data
-function register_user(userdata){
+function register_user(userdata , callback){
     console.log(chalk.yellow("DB_Middleware:register-user >>> ") + chalk.white("register user to database" ));
 
     var query2 ="CALL register_user('" +
@@ -98,7 +98,12 @@ function register_user(userdata){
         userdata["last_name"]+"','"+
         userdata["password"]+"');";
 
-    connection.query(query2);
+    connection.query(query2 , function(error , info){
+            if(error)
+                callback(error , null);
+            else
+                callback(null , "ok");
+    });
     console.log(chalk.green("$$$--USER ADD---$$$ \n" )+ query2);
 
 }
@@ -162,11 +167,10 @@ function fetch_user_sent(userdata , callback){
 
 function check_user_password(userdata , callback){
     console.log(chalk.yellow("DB_Middleware:check-user-password >>> ") + chalk.white("checking password" ));
-    console.log(chalk.green("DB_Middleware:check-user-password >>> ")+chalk.blue("given password"+userdata["password"]));
 
+    console.log("1- =>" + JSON.stringify(userdata));
     //forge a proper query
     var query= "SELECT password , is_confirmed FROM user WHERE username= '"+userdata["username"]+"'" ;
-    console.log(chalk.green("DB_Middleware:check-user-password >>> ")+chalk.blue("query :"+query));
 
     //run the query
     connection.query(query , function(error , results , fields){
@@ -175,13 +179,49 @@ function check_user_password(userdata , callback){
         else if(!results)
             callback(new Error("NOT FOUND") , null);
         else {
+
+            console.log("2- =>" + JSON.stringify(results[0]));
             fetched_info = results[0];
-            console.log(chalk.green("DB_Middleware >>> ")+ chalk.blue("fetched password: "+JSON.stringify(fetched_info)));
+            fetched_pass = JSON.stringify(fetched_info.password);
+            console.log("fetched-pass"  + fetched_pass + "\ngiven pass" + userdata.password);
             if(fetched_info["is_confirmed"] == 0)
                 callback(new Error("Not Confirmed") , null);
             else
-                callback(null , fetched_info == userdata["password"]);
+                callback(null , JSON.stringify(fetched_info.password) == JSON.stringify(userdata.password));
         }
+    });
+}
+
+function send_message(data , callback){
+    console.log(chalk.yellow("DB_Middleware:send-message >>> ") + chalk.white("sending message" ));
+
+    //forge query
+    var query = "CALL send_message(" +  JSON.stringify(data.sender) + " , " +
+                                        JSON.stringify(data.receiver) + " , " +
+                                        JSON.stringify(data.subject) +" , " +
+                                        JSON.stringify(data.content) + "); " ;
+    //run the query
+    connection.query(query , function (error , info) {
+        if(error)
+            callback(error , null) ;
+        else
+            callback(null  , info) ;
+
+    })
+
+}
+
+function fetch_message_subjects(data , callback){
+    console.log(chalk.yellow("DB_Middleware:fetch-message-subjects >>> ") + chalk.white("fetch all message subjects" ));
+    query = "SELECT subject FROM message , send_message WHERE message_id = id AND receiver_username = " + JSON.stringify(data.username) ;
+
+    connecttion.query(query  , function(error  , result , fields){
+        if(error)
+            callback(error , null);
+        else if(result == null)
+            callback(new Error("you have no message") , null);
+        else
+            callback(null , result);
     });
 }
 
@@ -195,6 +235,8 @@ exports.check_user_password = check_user_password;
 exports.set_confirm_code = set_confirm_code ;
 exports.fetch_confirm_code = fetch_confirm_code ;
 exports.set_confirm_code_status  = set_confirm_code_status;
+exports.send_message = send_message;
+exports.fetch_user_inbox = fetch_user_inbox;
 
 //TEST --
 function test(){
