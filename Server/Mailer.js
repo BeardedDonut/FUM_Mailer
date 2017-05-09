@@ -3,49 +3,51 @@
  */
 'use strict';
 const nodemailer = require('nodemailer');
-
-
+var chalk = require("chalk");
+var ejs = require("ejs");
 
 //transporter object which will send emails
 var transporter = nodemailer.createTransport({
+    //TODO : Create a gmail account for mailing purpose
     service: 'gmail',
     auth: {
-        user: 'koopernikkoop@gmail.com',
-        pass: '19961375nA'
+        user: '<email>',
+        pass: '<password>'
     }
 });
 
+//send confirmation code to the user email
+var send_confirmation_code = function (userdata, callback) {
+    console.log(chalk.yellow("Mailer:send-confirm-code >>> ") + chalk.white("sending sending email"));
+    var emailTest = "Hello Dear " + userdata["username"] + ".We have received your request for signing up to our application." +
+        "Please confirm your request by sending us back the confirmation number in below. \n ";
+    var clientEmail = userdata["email"];
+
+    ejs.renderFile(__dirname + "/views/confirm_mail.ejs", userdata, function (err, str) {
+        if (err)
+            console.log(err.toString());
+        else {
+
+            var mailOption = {
+                from: 'bishoorozgal@gmail.com',
+                to: clientEmail,
+                subject: 'Confirmation',
+                text: emailTest,
+                html: str
+            };
+        }
+
+        transporter.sendMail(mailOption, function (error, info) {
+            if (error)
+                callback(error, null);
+            else
+                callback(null, info);
+        });
 
 
-
-
-
-
-
-
-
-var SendAuthenticationMail = function (data, callback) {
-    var emailTest = "Hello Dear " + data["name"] + ".We received your request for signing up to our application." +
-            "Please confirm your request by sending us back the confirmation number in below. \n " + data["confirmation"]
-        ;
-    var clientEmail = data["email"];
-
-    var mailOption = {
-        from: 'koopernikkoop@gmail.com',
-        to: clientEmail,
-        subject: 'Confirmation',
-        text: emailTest,
-        html: '<b style="float = right"> Best _ Koopernik Koop </b>'
-    };
-
-    transporter.sendMail(mailOption, function (error, info) {
-        if (error)
-            callback(error, null);
-        else
-            callback(null, info);
     });
+
 };
 
 
-
-exports.SendAuthenticationMail = SendAuthenticationMail;
+exports.send_confirmation_code = send_confirmation_code;
