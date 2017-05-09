@@ -15,7 +15,7 @@ var app = express();
 var http = require("http");
 app.use(bodyParser.json()); // for parsing application/json
 app.use(bodyParser.urlencoded({extended: true})); // for parsing application/x-www-form-urlencoded
-
+app.set("view engine" , "ejs");
 //INIT -->
 DBMiddleware.connect();
 var localaddr = "192.168.43.201";
@@ -72,6 +72,8 @@ app.get("/", function (req, res) {
 });
 
 //user registration api
+//request format :{ username , first_name , last_name , email , password }
+//response format :{ status , content }
 app.post("/user/", function (req, res) {
     console.log(chalk.yellow("Server:user-post >>> ") + chalk.white("registering a user"));
 
@@ -105,6 +107,9 @@ app.get("/user/:id", function (req, res) {
 });
 
 //user authentication api
+//request format : {username , password}
+//response format : {status , content} content contains a key which is needed during the session and needs to be passed
+//future requests
 app.put("/user/", function (req, res) {
     console.log(chalk.yellow("Server:user-put >>> ") + chalk.white("checking log in info"));
 
@@ -121,6 +126,7 @@ app.put("/user/", function (req, res) {
         "password": password
     }, function (error, results) {
         if (error) {
+            res.status(406);
             res.send(reply.content = error.toString());
         }
         else if (results == true) {
@@ -143,7 +149,7 @@ app.put("/user/", function (req, res) {
 });
 
 //log out procedure
-app.unlock("/user/", function (req, res) {
+app.unlink("/user/", function (req, res) {
     username = req.body.username;
     for (i = 0; i < logged_users.length; i++) {
         if (logged_users[i].username == username)
@@ -153,6 +159,7 @@ app.unlock("/user/", function (req, res) {
 });
 
 //check if a given confirmation code matches
+//request format : {username , confirmation_code }
 app.put("/confirmation/", function (req, res) {
     console.log(chalk.yellow("Server:confirmation-put >>> ") + chalk.white("checking if conf codes match?"));
 
@@ -200,6 +207,7 @@ app.put("/confirmation/", function (req, res) {
 });
 
 //resending confirmation code to an specific username
+//request format : {username}
 app.post("/confirmation/", function (req, res) {
     console.log(chalk.yellow("Server:confirmation-post >>> ") + chalk.white("asking for resending confirmation code"));
 
@@ -232,6 +240,8 @@ app.post("/confirmation/", function (req, res) {
 });
 
 //send a message procedure
+//request format : {sender , receiver , content , key , subject} key is a valued that server gives to logged-in users
+//and is used for identification during the session
 app.post("/message/", function (req, res) {
 
     console.log(chalk.yellow("Server:message-post >>> ") + chalk.white("sending message"));
@@ -274,6 +284,8 @@ app.post("/message/", function (req, res) {
 });
 
 //fetch inbox message subjects and their state which indicates it is read or not
+//request format : {key , username}
+//response format : {status , content(if authentication was right content holds a set of this values) : { subject  , is_checked} }
 app.put("/message/inbox/", function (req, res) {
     console.log(chalk.yellow("Server:message/inbox-put >>> ") + chalk.white("fetch inbox subjects"));
 
@@ -307,6 +319,8 @@ app.put("/message/inbox/", function (req, res) {
 });
 
 //fetch inbox message subjects and their state which indicates it is read or not
+//request format : {key , username}
+//response format : {status , content(if authentication was right content holds a set of this values) : { subject } }
 app.put("/message/outbox/", function (req, res) {
     console.log(chalk.yellow("Server:message/sent-put >>> ") + chalk.white("fetch sent subjects"));
 
@@ -327,8 +341,10 @@ app.put("/message/outbox/", function (req, res) {
         res.send(reply.content = "please log in first"); //TODO : send proper message
     else
         DBMiddleware.fetch_user_sent_subjects(req.body, function (error, result) {
-            if (error)
+            if (error){
+                res.status(406);
                 res.send(reply.content = error.toString()); //TODO : send proper message
+            }
             else {
                 reply.status = 1;
                 reply.content = result;
@@ -339,16 +355,20 @@ app.put("/message/outbox/", function (req, res) {
 
 });
 
-//TODO :
-//fetch a specific message provided it's subject
-app.post("/message/inbox/", function (req, res) {
 
+//fetch a specific message provided it's subject from inbox
+//request format : {key , username , subject}
+//response format :
+// {content , subject  , date , time , receiver_username , sender_username} + (some other garbage attributes which is set to "-1")
+app.post("/message/inbox/", function (req, res) {
+    //take necessary parameters
     key = JSON.stringify(req.body.key);
     username = JSON.stringify(req.body.username);
 
-
+    //forge a reply template
     reply = {"status": 0, "content": null};
 
+    //check if the user has already logged in
     var i = 0;
     for (i = 0; i < logged_users.length; i++) {
         cur_logged_username = JSON.stringify(logged_users[i].username);
@@ -360,13 +380,40 @@ app.post("/message/inbox/", function (req, res) {
     if (i == logged_users.length)
         res.send(reply.content = "please log in first");
     else {
-        //TODO : fetch
+        DBMiddleware.fetch_inbox_message_content(req.body , function(error , result){
+            if (error){
+                //send back a proper error
+                res.status(406);
+                res.send(reply.content = error.toString());
+            }else{
+                //if everything was alright ...
+
+                reply.status = 1 ;
+                var id = result.message_id;
+                var is_checked = result.is_checked ;
+
+                //set garbage attributes
+                result.message_id = -1 ;
+                result.id = -1 ;
+                result.is_checked = -1  ;
+
+                //send back the result
+                reply.content = result ;
+                res.send(reply);
+
+                //if the user has not checked message before mark it as checked
+                if(is_checked == 0)
+                    DBMiddleware.check_message(id , function (err ,result) {});
+            }
+        });
     }
 
 });
 
-//TODO :
 //fetch a specific message from outbox
+//request format : {key , username , subject}
+//response formate :
+// {content , subject  , date , time , receiver_username , sender_username} + (some other garbage attributes which is set to "-1")
 app.post("/message/outbox/", function (req, res) {
 
     key = JSON.stringify(req.body.key);
@@ -386,7 +433,16 @@ app.post("/message/outbox/", function (req, res) {
     if (i == logged_users.length)
         res.send(reply.content = "please log in first");
     else {
-        //TODO : fetch
+        DBMiddleware.fetch_outbox_message_content(req.body , function(error , result){
+            if (error){
+                res.status(406);
+                res.send(reply.content = error.toString());
+            }else{
+                reply.status = 1 ;
+                reply.content = result ;
+                res.send(reply)
+            }
+        });
     }
 
 });

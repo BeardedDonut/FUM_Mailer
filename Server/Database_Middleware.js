@@ -1,6 +1,7 @@
 //================= Requirements
 var mysql      = require('mysql');
 var chalk      = require('chalk');
+var ejs        = require('ejs');
 
 //mysql agent
 var connection = mysql.createConnection({
@@ -144,7 +145,7 @@ function check_user_password(userdata , callback){
     connection.query(query , function(error , results , fields){
         if(error)
             callback(error , null) ;
-        else if(!results)
+        else if(!results[0])
             callback(new Error("NOT FOUND") , null);
         else {
 
@@ -218,25 +219,57 @@ function fetch_user_sent_subjects(userdata , callback){
     });
 }
 
-//fetch a specific message provided its subject
-function fetch_message_content(data , callback){
-    console.log(chalk.yellow("DB_Middleware: >>> ") + chalk.white("fetch sent subjects"));
+//fetch a specific message provided its subject from inbox
+function fetch_inbox_message_content(data , callback){
+    console.log(chalk.yellow("DB_Middleware:fetch_inbox_message_content >>> ") + chalk.white("fetch sent subjects"));
 
     //forge a proper query
     var query = "SELECT * FROM message , send_message WHERE message_id = id AND subject=" + JSON.stringify(data.subject) +
-        "AND receiver_username = "
+        "AND receiver_username = " +JSON.stringify(data.username);
 
     //run the query
     connection.query(query , function(error , result , fields){
         if(error)
             callback(error , null);
-        else if(!result)
+        else if(!result[0])
+            callback(new Error("NOT FOUND") , null) ;
+        else
+            callback(null , result[0]);
+    });
+}
+
+//fetch a specific message provided its subject from outbox
+function fetch_outbox_message_content(data , callback){
+    console.log(chalk.yellow("DB_Middleware:fetch_inbox_message_content >>> ") + chalk.white("fetch sent subjects"));
+
+    //forge a proper query
+    var query = "SELECT * FROM message , send_message WHERE message_id = id AND subject=" + JSON.stringify(data.subject) +
+        "AND sender_username = " +JSON.stringify(data.username);
+
+    //run the query
+    connection.query(query , function(error , result , fields){
+        if(error)
+            callback(error , null);
+        else if(!result[0])
             callback(new Error("NOT FOUND") , null) ;
         else
             callback(null , result);
     });
 }
 
+function check_message(message_id , callback){
+    console.log(chalk.yellow("DB_Middleware:check_message >>> ") + chalk.white("fetch sent subjects"));
+
+    var query = "UPDATE message SET is_checked = 1 WHERE id = " + message_id ;
+
+    connection.query(query , function (err , result ) {
+        if (err)
+            callback(err , null);
+        else
+            callback(null , result);
+
+    })
+}
 
 //prime operations
 exports.connect = connect;
@@ -256,23 +289,27 @@ exports.set_confirm_code_status  = set_confirm_code_status;
 exports.send_message = send_message;
 exports.fetch_user_inbox_subjects = fetch_user_inbox_subjects;
 exports.fetch_user_sent_subjects = fetch_user_sent_subjects ;
-exports.fetch_message_content = fetch_message_content ;
+exports.fetch_inbox_message_content = fetch_inbox_message_content ;
+exports.fetch_outbox_message_content= fetch_outbox_message_content ;
+exports.check_message = check_message;
 
 //TEST --
 function test(){
-    console.log(chalk.yellow("1- connecting..."));
-    connect();
+    console.log("testing ejs");
+    var options = {"confirmation_code" : "Gilbert"};
 
-    console.log(chalk.yellow("2- fetch Navid9675 user data..."));
-    fetch_user_prime_data({"username":"Navid9675"} , function(error , result){});
-
-    console.log("3- register new user shalgham1234");
-    //register_user({"username":"shalgham1234" , "email" : "shalghamkhan@gmail.com" , ""})
-
+   var template = ejs.renderFile(__dirname+"/views/confirm_mail.ejs" , options   , function ( err , html){
+        console.log("asdfasdf");
+        if(err)
+            console.log(err.toString());
+        else {
+            console.log("shit");
+             console.log(html)  ;
+            }
+            console.log("asdfasdf2");
+    });
+   console.log(__dirname)  ;
 }
-
-
-
 
 //END TEST
 
