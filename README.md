@@ -1,4 +1,5 @@
 # FUM_Mailer
+
 add a config.json file in Server folder and it should contain json data below:
 -------------config.json Template
 {
