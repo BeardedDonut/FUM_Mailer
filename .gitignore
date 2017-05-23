@@ -38,3 +38,6 @@ jspm_packages
 
 #just for colorizing
 colorama
+
+Server/config.json
+
