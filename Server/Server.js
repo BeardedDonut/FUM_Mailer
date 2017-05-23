@@ -21,7 +21,7 @@ DBMiddleware.connect();
 var localaddr = "192.168.43.201";
 var localhost = "localhost";
 var address = localhost;
-var port = 3000;
+var port = 3001;
 logged_users = [];//logged users
 
 //this function sends the confirmation code to a user provided his username
@@ -80,17 +80,21 @@ app.post("/user/", function (req, res) {
     reply = {"status": 0, "content": null};
     //register in database
     DBMiddleware.register_user(req.body, function (error, info) {
-        if (error)
-            res.send(reply.content = error.toString());
+        if (error){
+            reply.content = error.toString();
+            res.send(reply);
+        }
         else {
             //send the confirmation code to registered-user's email
             send_confirmation_code(req.body, function (error, info) {
-                if (error)
-                    res.send(reply.content = error.toString());
+                if (error){
+                    reply.content = error.toString();
+                    res.send(reply);
+                }
                 else {
                     reply.status = 1;
                     reply.content = "registered successfully";
-                    res.send();
+                    res.send(reply);
                 }
             });
         }
@@ -127,7 +131,8 @@ app.put("/user/", function (req, res) {
     }, function (error, results) {
         if (error) {
             res.status(406);
-            res.send(reply.content = error.toString());
+            reply.content = error.toString();
+            res.send(reply);
         }
         else if (results == true) {
 
@@ -136,13 +141,14 @@ app.put("/user/", function (req, res) {
             code_generator.generate_short_id(function (id) {
                 reply.content = id;
                 res.send(reply);
-
                 logged_users.push({"username": username, "key": id});
-
             });
         }
-        else
-            res.send(reply.content = "username or password incorrect.Try again");
+        else{
+            reply.content = "username or password incorrect.Try again" ;
+            res.send(reply);
+        }
+
 
     });
 
@@ -185,8 +191,10 @@ app.put("/confirmation/", function (req, res) {
                 //check if they are equal or not
                 if (fetched_conf_code == confirmation_code) {
                     DBMiddleware.set_confirm_code_status(req.body, 1, function (error, info) {
-                        if (error)
-                            res.send(reply.content = error.toString());
+                        if (error){
+                            reply.content = error.toString();
+                            res.send(reply);
+                        }
                         else {
                             reply.status = 1;
                             reply.content = "confirm code matches";
@@ -194,11 +202,14 @@ app.put("/confirmation/", function (req, res) {
                         }
                     });
                 } else {
-                    reply.content = "confirmation code mismatches or user does not exit!";
+                    reply.content = "confirmation code mismatches or user does not exist!";
                     res.send(reply);
                 }
             }
-            else res.send(reply.content = error.toString());
+            else {
+                reply.content = error.toString();
+                res.send(reply);
+            }
         });
 
     }
@@ -226,8 +237,10 @@ app.post("/confirmation/", function (req, res) {
     } else {
         //send conf code
         send_confirmation_code(req.body, function (error, info) {
-            if (error)
-                res.send(reply.content = error.toString());
+            if (error){
+                reply.content = error.toString();
+                res.send(reply);
+            }
             else {
                 reply.status = 1;
                 reply.content = "confirmation code sent";
@@ -258,16 +271,22 @@ app.post("/message/", function (req, res) {
     reply = {"status": 0, "content": null};
 
     //check for the requirements
-    if (subject == null || receiver == null || content == null || sender == null)
-        res.send(reply.content = "some message component is missing");
+    if (subject == null || receiver == null || content == null || sender == null){
+        res.status = 406 ;
+        reply.content = "some message component is missing" ;
+        res.send(reply);
+    }
     else {
         var i = 0;
         for (i = 0; i < logged_users.length; i++) {
             //check if the request is from logged users or not
             if (JSON.stringify(logged_users[i].username) == sender && key == JSON.stringify(logged_users[i].key)) {
                 DBMiddleware.send_message(req.body, function (error, info) {
-                    if (error)
-                        res.send(reply.content = error.toString());
+                    if (error){
+                        reply.content = error.toString();
+                        res.send(reply);
+                    }
+
                     else {
                         reply.content = "message sent";
                         reply.status = 0;
@@ -276,10 +295,14 @@ app.post("/message/", function (req, res) {
                 });
                 break;
             } else if (logged_users.username == sender) {
-                res.send(reply.content = sender + " please log in first");
+                reply.content = sender + " please log in first";
+                res.send(reply);
             }
         }
-        if (i == logged_users) res.send(reply.content = "please log in with your username first");
+        if (i == logged_users){
+            reply.content = "please log in with your username first";
+            res.send(reply);
+        }
     }
 });
 
@@ -302,12 +325,16 @@ app.put("/message/inbox/", function (req, res) {
             break;
         }
     }
-    if (i == logged_users.length)
-        res.send(reply.content = "Not found"); //TODO : send proper message
+    if (i == logged_users.length){
+        reply.content = "user has not logged yet!";
+        res.send(reply);
+    }
     else
         DBMiddleware.fetch_user_inbox_subjects(req.body, function (error, result) {
-            if (error)
-                res.send(reply.content = error.toString()); //TODO : send proper message
+            if (error){
+                reply.content = error.toString();
+                res.send(reply);
+            }
             else {
                 reply.status = 1;
                 reply.content = result;
@@ -337,13 +364,16 @@ app.put("/message/outbox/", function (req, res) {
             break;
         }
     }
-    if (i == logged_users.length)
-        res.send(reply.content = "please log in first"); //TODO : send proper message
+    if (i == logged_users.length){
+        reply.content = "please log in first";
+        res.send(reply);
+    }
     else
         DBMiddleware.fetch_user_sent_subjects(req.body, function (error, result) {
             if (error){
                 res.status(406);
-                res.send(reply.content = error.toString()); //TODO : send proper message
+                reply.content = error.toString();
+                res.send(reply); //TODO : send proper message
             }
             else {
                 reply.status = 1;
@@ -377,14 +407,17 @@ app.post("/message/inbox/", function (req, res) {
             break;
         }
     }
-    if (i == logged_users.length)
-        res.send(reply.content = "please log in first");
+    if (i == logged_users.length){
+        reply.content = "please log in first";
+        res.send(reply);
+    }
     else {
         DBMiddleware.fetch_inbox_message_content(req.body , function(error , result){
             if (error){
                 //send back a proper error
                 res.status(406);
-                res.send(reply.content = error.toString());
+                reply.content = error.toString();
+                res.send(reply);
             }else{
                 //if everything was alright ...
 
@@ -430,8 +463,10 @@ app.post("/message/outbox/", function (req, res) {
             break;
         }
     }
-    if (i == logged_users.length)
-        res.send(reply.content = "please log in first");
+    if (i == logged_users.length){
+        reply.content = "please log in first";
+        res.send(reply);
+    }
     else {
         DBMiddleware.fetch_outbox_message_content(req.body , function(error , result){
             if (error){
@@ -440,6 +475,7 @@ app.post("/message/outbox/", function (req, res) {
             }else{
                 reply.status = 1 ;
                 reply.content = result ;
+                console.log(chalk.red(" result >>> ") + "       " + JSON.stringify(result));
                 res.send(reply)
             }
         });

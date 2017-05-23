@@ -2,13 +2,14 @@
 var mysql      = require('mysql');
 var chalk      = require('chalk');
 var ejs        = require('ejs');
+var fs         = require('fs');
 
 //mysql agent
 var connection = mysql.createConnection({
   host     : 'localhost',
-  user     : 'mail_tester',
-  password : '12341234',
-  database : 'FUM_Mailer'
+  user     : '<username>',
+  password : '<password>',
+  database : '<database_name>'
 });
 
 //string replace util
@@ -21,11 +22,33 @@ String.prototype.format = function () {
 
 //================= Core Functions
 
+function init(callback){
+    console.log("init");
+    fs.readFile(__dirname + "/config.json" , function (err , data) {
+        if (err){
+
+                console.log(err.toString());
+                callback(err , null) ;
+        }
+        else{
+            console.log("hello");
+            console.log(JSON.parse(data)) ;
+            connection = mysql.createConnection(JSON.parse(data).Database);
+            callback(null , JSON.parse(data)) ;
+        }
+    });
+}
+
 //database_middleware.connect
 var connect = function () {
-  console.log(chalk.blue("Attempting to connect to the database ..."));
-  connection.connect();
-  console.log(chalk.blue("Connected!"));
+    init(function(err, data){
+        if(err)
+            throw error ;
+        console.log(chalk.blue("Attempting to connect to the database ..."));
+        console.log(data.Database);
+        connection.connect();
+        console.log(chalk.blue("Connected"));
+        });
 };
 
 //runs a query on database
@@ -253,7 +276,7 @@ function fetch_outbox_message_content(data , callback){
         else if(!result[0])
             callback(new Error("NOT FOUND") , null) ;
         else
-            callback(null , result);
+            callback(null , result[0]);
     });
 }
 
